@@ -9,41 +9,46 @@ from honeypot_api.app.memory import update_conversation, get_metrics
 
 app = FastAPI()
 
-# Matches the secret key in your Render Environment Variables
+# Ensure this matches the Environment Variable in Render
 API_KEY = os.getenv("API_KEY", "changeme")
 
 @app.post("/honeypot")
 async def honeypot(request: Request):
-    # 1. Header validation using a safe .get()
+    # 1. Manual Header Check
     x_api_key = request.headers.get("x-api-key")
     if x_api_key != API_KEY:
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
-    # 2. Force read raw body as text to avoid Content-Type issues
+    # 2. Raw Body Extraction
+    # We read the body as bytes first to avoid any parsing crashes
     try:
         raw_body = await request.body()
-        body_text = raw_body.decode("utf-8") if raw_body else "{}"
-        body = json.loads(body_text)
+        if not raw_body:
+            body = {}
+        else:
+            # Decode bytes to string and then to JSON
+            body = json.loads(raw_body.decode("utf-8"))
     except Exception:
+        # If it's not JSON or empty, we treat it as an empty dict
         body = {}
 
-    # 3. Use safe .get() for all fields with defaults
-    # This prevents crashes if fields are missing or null
+    # 3. Safe Value Extraction
+    # The tester might send message: null or conversation_id: 123
     message = str(body.get("message") or "")
     conversation_id = str(body.get("conversation_id") or "default")
 
-    # 4. Logic Execution
+    # 4. Process Logic
     try:
         scam_detected = detect_scam(message)
         extracted = extract_intelligence(message)
         update_conversation(conversation_id)
         turns, duration = get_metrics(conversation_id)
-    except Exception:
-        # Emergency fallback data
+    except Exception as e:
+        print(f"Logic Error: {e}")
         scam_detected, turns, duration = False, 1, 0
         extracted = {"bank_accounts": [], "upi_ids": [], "phishing_links": []}
 
-    # 5. Return the exact JSON structure the tester expects
+    # 5. Forced JSON Response
     return JSONResponse(
         status_code=200,
         content={
@@ -57,5 +62,5 @@ async def honeypot(request: Request):
     )
 
 @app.get("/")
-async def health_check():
+async def health():
     return {"status": "online"}
