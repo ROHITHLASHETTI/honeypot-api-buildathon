@@ -1,22 +1,13 @@
 import re
 
 def detect_scam(message: str) -> bool:
-    if not message:
-        return False
+    if not message: return False
     
-    # Keywords often found in scam messages
-    scam_keywords = [
-        r"urgent", r"locked", r"win", r"prize", r"lottery", 
-        r"bank details", r"verify", r"account suspended", r"pay now"
-    ]
+    keywords = [r"urgent", r"locked", r"pay", r"bank", r"win", r"prize"]
+    msg_lower = message.lower()
     
-    message_lower = message.lower()
-    for pattern in scam_keywords:
-        if re.search(pattern, message_lower):
-            return True
-            
-    # Also flag if it contains a UPI ID or multiple numbers
-    if "@" in message or len(re.findall(r"\d", message)) > 10:
-        return True
-        
+    # Flag if keywords found OR if it looks like a UPI/Bank request
+    if any(re.search(k, msg_lower) for k in keywords): return True
+    if "@" in message or re.search(r"\d{10,}", message): return True
+    
     return False
