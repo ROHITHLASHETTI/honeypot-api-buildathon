@@ -1,13 +1,9 @@
 from pydantic import BaseModel
-from typing import List, Dict
-from typing import Optional
+from typing import List, Dict, Optional
 
 class HoneypotRequest(BaseModel):
     conversation_id: Optional[str] = "default"
     message: Optional[str] = ""
-# class HoneypotRequest(BaseModel):
-#     conversation_id: str
-#     message: str
 
 class EngagementMetrics(BaseModel):
     conversation_turns: int

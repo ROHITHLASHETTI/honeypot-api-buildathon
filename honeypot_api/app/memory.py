@@ -12,5 +12,7 @@ def update_conversation(conv_id):
 
 def get_metrics(conv_id):
     data = conversations.get(conv_id, {})
-    duration = int(time.time() - data.get("start_time", time.time()))
+    # If key doesn't exist, we fallback to 0 duration and 1 turn
+    start_time = data.get("start_time", time.time())
+    duration = int(time.time() - start_time)
     return data.get("turns", 1), duration
