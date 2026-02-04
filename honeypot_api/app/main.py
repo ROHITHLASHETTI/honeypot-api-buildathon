@@ -1,5 +1,7 @@
 import os
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.requests import Request
 
 from honeypot_api.app.detector import detect_scam
 from honeypot_api.app.extractor import extract_intelligence
@@ -18,7 +20,8 @@ async def honeypot(
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Safely read JSON body (even if empty)
+    # DO NOT force JSON parsing
+    body = {}
     try:
         body = await request.json()
     except Exception:
@@ -34,11 +37,15 @@ async def honeypot(
 
     turns, duration = get_metrics(conversation_id)
 
-    return {
-        "scam_detected": scam_detected,
-        "engagement_metrics": {
-            "conversation_turns": turns,
-            "engagement_duration_seconds": duration
-        },
-        "extracted_intelligence": extracted
-    }
+    # Explicit JSON response (tester-friendly)
+    return JSONResponse(
+        status_code=200,
+        content={
+            "scam_detected": scam_detected,
+            "engagement_metrics": {
+                "conversation_turns": turns,
+                "engagement_duration_seconds": duration
+            },
+            "extracted_intelligence": extracted
+        }
+    )
