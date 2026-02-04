@@ -25,32 +25,31 @@ API_KEY = os.getenv("API_KEY", "changeme")
 
 # 2. FIX: Handle both /honeypot and /honeypot/
 @app.post("/honeypot")
-@app.post("/honeypot/")
 async def honeypot(request: Request):
-    # Header Validation
+    # 1. Manually check the API Key
     x_api_key = request.headers.get("x-api-key")
     if x_api_key != API_KEY:
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
-    # 3. FIX: Manual Raw Body Parsing
-    # This prevents the '422 Unprocessable Entity' error if the tester 
-    # sends an empty body or incorrect Content-Type.
+    # 2. Capture the RAW body to prevent the "INVALID_REQUEST_BODY" error
     try:
         raw_data = await request.body()
+        # If it's empty or bad JSON, we just use an empty dict
         body = json.loads(raw_data.decode("utf-8")) if raw_data else {}
     except Exception:
         body = {}
 
-    # Safe data extraction
+    # 3. Use .get() with defaults so missing fields don't cause a crash
     message = str(body.get("message") or "")
     conversation_id = str(body.get("conversation_id") or "default")
 
-    # Business Logic
+    # 4. Run your logic (Detect, Extract, Update Memory)
     scam_detected = detect_scam(message)
     extracted = extract_intelligence(message)
     update_conversation(conversation_id)
     turns, duration = get_metrics(conversation_id)
 
+    # 5. Return the response structure the tester expects
     return {
         "scam_detected": bool(scam_detected),
         "engagement_metrics": {
@@ -59,7 +58,3 @@ async def honeypot(request: Request):
         },
         "extracted_intelligence": extracted
     }
-
-@app.get("/")
-async def health():
-    return {"status": "online"}
