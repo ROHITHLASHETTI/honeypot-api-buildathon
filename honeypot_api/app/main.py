@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# Ensure these modules exist in your /app folder
 from honeypot_api.app.detector import detect_scam
 from honeypot_api.app.extractor import extract_intelligence
 from honeypot_api.app.memory import update_conversation, get_metrics
@@ -25,11 +26,11 @@ async def health():
 
 @app.post("/honeypot")
 async def honeypot(request: Request):
-    # Auth Check
+    # 1. AUTH CHECK (Returns 401 if wrong, passes if correct)
     if request.headers.get("x-api-key") != API_KEY:
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
-    # Defensive Body Parsing
+    # 2. DEFENSIVE PARSING
     try:
         raw_data = await request.body()
         body = json.loads(raw_data.decode("utf-8")) if raw_data else {}
@@ -39,15 +40,16 @@ async def honeypot(request: Request):
     message = str(body.get("message") or "")
     conversation_id = str(body.get("conversation_id") or "default")
 
-    # Core Logic
+    # 3. CORE LOGIC (This is what wins the hackathon)
     scam_detected = detect_scam(message)
     extracted = extract_intelligence(message)
     
-    # Session Tracking
+    # 4. SESSION TRACKING
     update_conversation(conversation_id)
     turns, duration = get_metrics(conversation_id)
 
-    # Returning the REAL response the tester expects
+    # 5. THE CORRECT JSON RESPONSE
+    # No more "Check your Render logs" text here!
     return {
         "scam_detected": bool(scam_detected),
         "engagement_metrics": {
