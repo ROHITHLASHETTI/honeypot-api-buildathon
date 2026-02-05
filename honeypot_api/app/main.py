@@ -8,10 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from honeypot_api.app.detector import detect_scam
 from honeypot_api.app.extractor import extract_intelligence
 from honeypot_api.app.memory import update_conversation, get_metrics
+from honeypot_api.app.generator import generate_honeypot_reply
 
 app = FastAPI(title="ShieldGuard Honeypot")
 
-# Enable CORS for web-based testers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,12 +24,11 @@ API_KEY = os.getenv("API_KEY", "changeme")
 @app.post("/honeypot")
 @app.post("/honeypot/")
 async def honeypot(request: Request):
-    # 1. Secure Authentication
-    x_api_key = request.headers.get("x-api-key")
-    if x_api_key != API_KEY:
+    # 1. Auth check
+    if request.headers.get("x-api-key") != API_KEY:
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
-    # 2. Defensive Parsing (Prevents INVALID_REQUEST_BODY)
+    # 2. Defensive Parsing
     try:
         raw_data = await request.body()
         body = json.loads(raw_data.decode("utf-8")) if raw_data else {}
@@ -37,30 +36,25 @@ async def honeypot(request: Request):
         body = {}
 
     message = str(body.get("message") or "")
-    # Ensure ID is consistent for turn tracking
     conversation_id = str(body.get("conversation_id") or "default_session")
 
-    # 3. Logic Execution
+    # 3. Logic: Detect, Extract, and AI Reply
     scam_detected = detect_scam(message)
     extracted = extract_intelligence(message)
+    ai_reply = generate_honeypot_reply(message) if scam_detected else "How can I help you?"
     
-    # 4. Update Memory FIRST so turns increment correctly
+    # 4. Update Memory
     update_conversation(conversation_id)
     turns, duration = get_metrics(conversation_id)
 
-    # 5. WINNING FEATURE: Intelligence Logging
+    # 5. Log Scammer Info
     if scam_detected:
         with open("scammer_intelligence.txt", "a") as f:
-            log_entry = (
-                f"[{datetime.datetime.now()}] ID: {conversation_id} | "
-                f"Scam: {message[:50]}... | "
-                f"UPIs: {extracted['upi_ids']} | "
-                f"Accounts: {extracted['bank_accounts']}\n"
-            )
-            f.write(log_entry)
+            f.write(f"[{datetime.datetime.now()}] ID: {conversation_id} | Msg: {message[:30]} | Info: {extracted}\n")
 
     return {
         "scam_detected": bool(scam_detected),
+        "ai_persona_reply": ai_reply,
         "engagement_metrics": {
             "conversation_turns": int(turns),
             "engagement_duration_seconds": int(duration)
