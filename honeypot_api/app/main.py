@@ -22,6 +22,13 @@ app.add_middleware(
 API_KEY = os.getenv("API_KEY", "changeme")
 
 @app.post("/honeypot")
+@app.get("/debug-key")
+async def debug_key(request: Request):
+    # This will print the key to your Render "Logs" tab
+    received_key = request.headers.get("x-api-key")
+    print(f"DEBUG: Received Key -> '{received_key}'")
+    print(f"DEBUG: Expected Key -> '{os.getenv('API_KEY')}'")
+    return {"message": "Check your Render logs to see the keys compared."}
 @app.post("/honeypot/")
 async def honeypot(request: Request):
     # 1. Auth check
